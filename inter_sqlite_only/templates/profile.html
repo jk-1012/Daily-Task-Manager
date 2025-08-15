@@ -1,0 +1,161 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Task Manager — Profile</title>
+<style>
+  :root{--bg:linear-gradient(135deg,#081226,#042f2f);--card:rgba(255,255,255,0.03);--muted:rgba(230,238,248,0.75)}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#e6eef8;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  nav a{color:#e6eef8;text-decoration:none;margin-right:8px}
+  .card{background:var(--card);padding:16px;border-radius:12px;max-width:880px;margin:0 auto}
+  .row{display:flex;gap:12px;align-items:center}
+  .field{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  .btn{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,#6d28d9,#2563eb);color:white;cursor:pointer}
+  .danger{background:linear-gradient(90deg,#ef4444,#b91c1c)}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#34d399,#60a5fa)"></div><div style="font-weight:700">Daily Task Manager</div></div>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/tasks-page/">Tasks</a>
+      <a href="/profile/">Profile</a>
+      <button onclick="logout()" class="btn" style="background:#0ea5a4">Logout</button>
+    </nav>
+  </header>
+
+  <main style="max-width:880px;margin:0 auto">
+    <div class="card">
+      <h2>Profile & Settings</h2>
+      <div style="display:flex;gap:18px;margin-top:12px;align-items:center">
+        <div style="flex:1">
+          <div class="muted">Username</div>
+          <div id="username" style="font-weight:700;margin-top:6px"></div>
+        </div>
+        <div style="flex:1">
+          <div class="muted">Email</div>
+          <div id="email" style="font-weight:700;margin-top:6px"></div>
+        </div>
+      </div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+      <h3>Appearance</h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="themeToggle"> Dark mode</label>
+        <div class="muted">Switch theme (demo: uses CSS only)</div>
+      </div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+      <h3>Data</h3>
+      <p class="muted">You can export your tasks or clear them. Deleting account removes local data.</p>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn" id="btnExport">Export tasks</button>
+        <button class="btn" id="btnImport">Import</button>
+        <button class="btn btn-ghost" id="btnClearTasks" style="background:transparent;border:1px solid rgba(255,255,255,0.04)">Clear tasks</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <button class="danger" id="btnDeleteAccount">Delete account</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      // Load user profile
+      fetch('/api/auth/user/')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(u => {
+          const un = document.getElementById('username');
+          const em = document.getElementById('email');
+          if(un) un.textContent = u.username || '';
+          if(em) em.textContent = u.email || '—';
+        })
+        .catch(()=> { /* @login_required prevents access anyway */ });
+    
+      // Theme toggle (optional, UI only)
+      const themeToggle = document.getElementById('themeToggle');
+      function applyTheme(t){
+        if(t==='dark'){
+          document.body.style.background = 'linear-gradient(135deg,#081226,#042f2f)';
+          document.body.style.color = '#e6eef8';
+        } else {
+          document.body.style.background = 'linear-gradient(135deg,#e0f2fe,#eef2ff)';
+          document.body.style.color = '#022c22';
+        }
+      }
+      if(themeToggle){
+        themeToggle.addEventListener('change', e => applyTheme(e.target.checked ? 'dark' : 'light'));
+      }
+    
+      // Export tasks from server
+      const btnExport = document.getElementById('btnExport');
+      btnExport && btnExport.addEventListener('click', ()=>{
+        fetch('/api/tasks/')
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(arr => {
+            const blob = new Blob([JSON.stringify(arr)], {type:'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download='tasks-export.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          }).catch(()=> alert('Failed to export'));
+      });
+    
+      // Import tasks to server
+      const btnImport = document.getElementById('btnImport');
+      btnImport && btnImport.addEventListener('click', ()=>{
+        const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+        inp.onchange = e => {
+          const f = e.target.files[0]; if(!f) return;
+          const r = new FileReader(); r.onload = ()=>{
+            try{
+              const arr = JSON.parse(r.result);
+              if(Array.isArray(arr)){
+                Promise.all(arr.map(t => fetch('/api/tasks/', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json','X-CSRFToken':getCSRFToken()},
+                  body: JSON.stringify({
+                    title:t.title, description:t.description||'', due_date:t.due_date||null,
+                    priority:t.priority||'medium', category:t.category||'General',
+                    reminder:!!t.reminder, completed:!!t.completed
+                  })
+                }))).then(()=> alert('Imported'));
+              } else alert('Invalid file');
+            }catch{ alert('Error parsing file'); }
+          }; r.readAsText(f);
+        }; inp.click();
+      });
+    
+      // Clear completed tasks from server
+      const btnClearTasks = document.getElementById('btnClearTasks');
+      btnClearTasks && btnClearTasks.addEventListener('click', ()=>{
+        if(!confirm('Clear all completed tasks?')) return;
+        fetch('/api/tasks/')
+          .then(r=>r.ok?r.json():Promise.reject())
+          .then(arr=>{
+            const done = arr.filter(t=>t.completed).map(t=>t.id);
+            return Promise.all(done.map(id => fetch(`/api/tasks/${id}/`, {method:'DELETE', headers:{'X-CSRFToken':getCSRFToken()}})));
+          }).then(()=> alert('Cleared'));
+      });
+    
+      // Placeholder (if you add an account deletion API later)
+      const btnDeleteAccount = document.getElementById('btnDeleteAccount');
+      btnDeleteAccount && btnDeleteAccount.addEventListener('click', ()=>{
+        alert('Account deletion endpoint not implemented.');
+      });
+    })();
+    </script>
+    
+    <!-- keep these two lines at the end of body -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <form style="display:none">{% csrf_token %}</form>
+    
+</body>
+</html>

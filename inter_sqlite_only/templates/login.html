@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Task Manager — Login</title>
+<style>
+:root {
+  --gap: 16px;
+  --radius: 12px;
+  --card-elev: 0 10px 30px rgba(2,6,23,0.35);
+  --accent-1: #7C3AED;
+  --accent-2: #2563EB;
+  --danger: #EF4444;
+}
+
+/* LIGHT THEME */
+:root[data-theme="light"] {
+  --bg-gradient: linear-gradient(135deg,#f7fbff 0%, #eef2ff 100%);
+  --body-text: #071224;
+  --muted: #475569;
+  --card-bg: #ffffff;
+  --card-border: #e6eef8;
+}
+
+/* DARK THEME */
+:root[data-theme="dark"] {
+  --bg-gradient: linear-gradient(135deg,#071224 0%, #052a2f 100%);
+  --body-text: #e6eef8;
+  --muted: rgba(230,238,248,0.78);
+  --card-bg: rgba(255,255,255,0.03);
+  --card-border: rgba(255,255,255,0.04);
+}
+
+body {
+  background: var(--bg-gradient);
+  color: var(--body-text);
+  font-family: Inter, Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 26px;
+  box-shadow: var(--card-elev);
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#34d399,#60a5fa);
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--body-text);
+  margin-top: 6px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 0;
+  background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+a.ghost {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
+.error {
+  color: var(--danger);
+  margin-top: 10px;
+  display: none;
+}
+</style>
+
+<script>
+// Apply saved theme
+(function(){
+  try {
+    var t = localStorage.getItem('dtm_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  } catch(e){}
+})();
+</script>
+</head>
+
+<body>
+<main class="card">
+  <div class="brand">
+    <div class="logo" aria-hidden="true"></div>
+    <div>
+      <div style="font-weight:800">Daily Task Manager</div>
+    </div>
+  </div>
+
+  <h1>Sign in</h1>
+  <div id="err" class="error" role="alert"></div>
+
+  <label for="u">Username</label>
+  <input id="u" type="text" autocomplete="username" placeholder="username">
+
+  <label for="p">Password</label>
+  <input id="p" type="password" autocomplete="current-password" placeholder="password">
+
+  <div class="row">
+    <button class="btn" id="btnLogin">Sign in</button>
+    <a class="ghost" href="/register/">Register</a>
+  </div>
+</main>
+
+<script>
+document.getElementById('btnLogin').addEventListener('click', login);
+document.getElementById('p').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+function login() {
+  const username = document.getElementById('u').value.trim();
+  const password = document.getElementById('p').value;
+  const err = document.getElementById('err');
+  err.style.display = 'none';
+
+  if (!username || !password) {
+    err.textContent = 'Enter username & password';
+    err.style.display = 'block';
+    return;
+  }
+
+  fetch('/api/auth/login/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+    body: JSON.stringify({ username, password })
+  })
+  .then(res => {
+    if (res.ok) {
+      window.location.href = '/dashboard/';
+    } else {
+      err.textContent = 'Invalid credentials — try again.';
+      err.style.display = 'block';
+    }
+  })
+  .catch(() => {
+    err.textContent = 'Server error. Please try again.';
+    err.style.display = 'block';
+  });
+}
+
+function getCSRFToken() {
+  let cookieValue = null;
+  const cookies = document.cookie ? document.cookie.split(';') : [];
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i].trim();
+    if (cookie.substring(0, 10) === 'csrftoken=') {
+      cookieValue = decodeURIComponent(cookie.substring(10));
+      break;
+    }
+  }
+  return cookieValue;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Daily Task Manager — Register</title>
+<style>
+:root{
+  --gap:16px;
+  --radius:12px;
+  --card-elev: 0 10px 30px rgba(2,6,23,0.35);
+  --accent-1: #7C3AED;
+  --accent-2: #2563EB;
+  --success: #34D399;
+  --warn: #F59E0B;
+  --danger: #EF4444;
+}
+
+:root[data-theme="light"]{
+  --bg-gradient: linear-gradient(135deg,#f7fbff 0%, #eef2ff 100%);
+  --body-text: #071224;
+  --muted: #475569;
+  --card-bg: #ffffff;
+  --card-border: #e6eef8;
+}
+
+:root[data-theme="dark"]{
+  --bg-gradient: linear-gradient(135deg,#071224 0%, #052a2f 100%);
+  --body-text: #e6eef8;
+  --muted: rgba(230,238,248,0.78);
+  --card-bg: rgba(255,255,255,0.03);
+  --card-border: rgba(255,255,255,0.04);
+}
+
+body { background: var(--bg-gradient); color: var(--body-text); }
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,Arial,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{width:100%;max-width:460px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:26px;box-shadow:var(--card-elev)}
+.brand{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#34d399,#60a5fa)}
+h1{margin:0;font-size:20px}
+label{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--card-border);background:transparent;color:var(--body-text);margin-top:6px}
+.row{display:flex;gap:10px;align-items:center;margin-top:16px}
+.btn{padding:10px 14px;border-radius:10px;border:0;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));color:white;cursor:pointer;font-weight:700}
+a.ghost{color:var(--accent-2);text-decoration:underline}
+.muted{color:var(--muted);font-size:13px;margin-top:12px}
+.error{color:var(--danger);margin-top:10px;display:none}
+</style>
+
+<script>
+// Apply saved theme
+(function(){
+  try{
+    var t = localStorage.getItem('dtm_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+
+<main class="card" role="main" aria-labelledby="h1">
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      <div style="font-weight:800">Daily Task Manager</div>
+      <div class="muted" style="margin-top:6px">Create your account</div>
+    </div>
+  </div>
+
+  <h1 id="h1">Register</h1>
+  <div id="err" class="error" role="alert"></div>
+
+  <label for="u">Username</label>
+  <input id="u" type="text" autocomplete="username" placeholder="username">
+
+  <label for="e">Email</label>
+  <input id="e" type="email" autocomplete="email" placeholder="email">
+
+  <label for="p">Password</label>
+  <input id="p" type="password" autocomplete="new-password" placeholder="password">
+
+  <div class="row">
+    <button class="btn" id="btnRegister">Create</button>
+    <a class="ghost" href="/login/">Back to Login</a>
+  </div>
+</main>
+
+<script>
+document.getElementById('btnRegister').addEventListener('click', function(){
+  const username = document.getElementById('u').value.trim();
+  const email = document.getElementById('e').value.trim();
+  const password = document.getElementById('p').value.trim();
+  const errBox = document.getElementById('err');
+
+  errBox.style.display = 'none';
+  if(!username || !email || !password){
+    return showError("All fields are required.");
+  }
+
+  fetch('/api/auth/register/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify({ username, email, password })
+  })
+  .then(res => {
+    if(res.ok) return res.json();
+    return res.json().then(err => { throw err; });
+  })
+  .then(() => {
+    window.location.href = "/login/";
+  })
+  .catch(err => {
+    showError(err.detail || "Registration failed. Try again.");
+  });
+
+  function showError(msg){
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+  }
+});
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+          }
+      }
+  }
+  return cookieValue;
+}
+</script>
+
+</body></html>

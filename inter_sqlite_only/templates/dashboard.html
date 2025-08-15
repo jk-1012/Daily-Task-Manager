@@ -1,0 +1,261 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Task Manager — Dashboard</title>
+<style>
+  :root{
+    --bg:linear-gradient(135deg,#0f172a 0%, #1e293b 40%, #0ea5a4 100%);
+    --card: rgba(255,255,255,0.04);
+    --accent: #7c3aed;
+    --success: #10b981;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#e6eef8;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#34d399,#60a5fa)}
+  nav a,nav button{color:#e6eef8;text-decoration:none;background:transparent;border:0;padding:8px 10px;border-radius:8px;cursor:pointer}
+  nav a:hover,nav button:hover{background:rgba(255,255,255,0.03)}
+
+  .wrap{display:grid;grid-template-columns:1fr;gap:16px;max-width:1100px;margin:0 auto}
+  @media(min-width:900px){.wrap{grid-template-columns:360px 1fr}}
+
+  .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.5)}
+  .stat-grid{display:flex;gap:10px;flex-wrap:wrap}
+  .stat{flex:1;min-width:120px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))}
+  h2{margin:0;font-size:18px}
+  .muted{color:rgba(230,238,248,0.8);font-size:13px}
+  .progress{height:12px;background:rgba(255,255,255,0.04);border-radius:8px;overflow:hidden;margin-top:10px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#34d399,#60a5fa)}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px;border-radius:10px;background:rgba(0,0,0,0.12)}
+  .item .title{font-weight:600}
+  .badge{padding:6px 8px;border-radius:999px;font-size:12px}
+
+  .small{font-size:13px;color:rgba(230,238,248,0.85)}
+
+  .quick-add{display:flex;gap:8px}
+  .quick-add input{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+  .btn{padding:10px 12px;border-radius:10px;border:0;background:linear-gradient(90deg,#6d28d9,#2563eb);color:white;cursor:pointer}
+
+  footer{max-width:1100px;margin:18px auto 0;color:rgba(230,238,248,0.6);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <div style="font-weight:700">Daily Task Manager</div>
+        <div class="muted" style="font-size:13px">Your productivity at a glance</div>
+      </div>
+    </div>
+
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/tasks-page/">Tasks</a>
+      <a href="/profile/">Profile</a>
+      <button onclick="logout()">Logout</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- left column -->
+    <section class="card" aria-labelledby="overview-heading">
+      <h2 id="overview-heading">Overview</h2>
+      <p class="small" id="greeting">Hello —</p>
+
+      <div style="margin-top:12px" class="stat-grid">
+        <div class="stat">
+          <div class="muted">Total</div>
+          <div style="font-size:18px;font-weight:700" id="stat-total">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Completed</div>
+          <div style="font-size:18px;font-weight:700;color:#34d399" id="stat-completed">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Pending</div>
+          <div style="font-size:18px;font-weight:700;color:#f59e0b" id="stat-pending">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Overdue</div>
+          <div style="font-size:18px;font-weight:700;color:#ef4444" id="stat-overdue">0</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="muted">Today progress</div>
+        <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="progress-bar" style="width:0%"></i>
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="muted">Quick add</div>
+        <div class="quick-add" style="margin-top:8px">
+          <input id="quickTitle" placeholder="New task title">
+          <button class="btn" id="btnQuick">Add</button>
+        </div>
+        <div class="muted" style="margin-top:8px;font-size:12px">Tip: Use Tasks page for advanced options</div>
+      </div>
+    </section>
+
+    <!-- right column -->
+    <section>
+      <div class="card" style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2>Upcoming</h2>
+          <div class="small">Next 5 tasks</div>
+        </div>
+
+        <div id="upcomingList" class="list" style="margin-top:12px">
+          <!-- populated via JS -->
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recently completed</h2>
+        <div id="recentCompleted" class="list" style="margin-top:12px">
+          <!-- populated via JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Built for demo — data is stored locally in your browser.
+  </footer>
+
+  <script>
+    (function(){
+      // DOM refs
+      const statTotal = document.getElementById('stat-total');
+      const statCompleted = document.getElementById('stat-completed');
+      const statPending = document.getElementById('stat-pending');
+      const statOverdue = document.getElementById('stat-overdue');
+      const progressBar = document.getElementById('progress-bar');
+      const upcomingList = document.getElementById('upcomingList');
+      const recentCompleted = document.getElementById('recentCompleted');
+      const quickTitle = document.getElementById('quickTitle');
+      const btnQuick = document.getElementById('btnQuick');
+      const greeting = document.getElementById('greeting');
+    
+      // Greet from server user
+      fetch('/api/auth/user/')
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(u => { greeting && (greeting.textContent = `Good ${greet()}, ${u.username || 'there'}!`); })
+        .catch(()=> { /* @login_required already handled access */ });
+    
+      let tasks = [];
+      loadTasks();
+    
+      btnQuick && btnQuick.addEventListener('click', quickAdd);
+    
+      function loadTasks(){
+        fetch('/api/tasks/')
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(arr => { tasks = arr || []; render(); })
+          .catch(() => { /* If 401, server would have redirected before */ });
+      }
+    
+      function quickAdd(){
+        const t = (quickTitle && quickTitle.value || '').trim();
+        if(!t) return alert('Enter a title');
+        const payload = {
+          title: t, description: '', priority: 'medium',
+          category: 'General', completed: false, due_date: null, reminder: false
+        };
+        fetch('/api/tasks/', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-CSRFToken': getCSRFToken() },
+          body: JSON.stringify(payload)
+        })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(newTask => { if(quickTitle) quickTitle.value=''; tasks.unshift(newTask); render(); })
+        .catch(()=> alert('Failed to add task'));
+      }
+    
+      function greet(){
+        const h = new Date().getHours();
+        if(h<12) return 'morning';
+        if(h<18) return 'afternoon';
+        return 'evening';
+      }
+    
+      function render(){
+        const total = tasks.length;
+        const completed = tasks.filter(t=>t.completed).length;
+        const pending = total - completed;
+        const overdue = tasks.filter(t=>{
+          if(!t.due_date || t.completed) return false;
+          const due = new Date(t.due_date);
+          return due < new Date();
+        }).length;
+    
+        statTotal && (statTotal.textContent = total);
+        statCompleted && (statCompleted.textContent = completed);
+        statPending && (statPending.textContent = pending);
+        statOverdue && (statOverdue.textContent = overdue);
+    
+        const progress = total ? Math.round((completed/total)*100) : 0;
+        progressBar && (progressBar.style.width = progress + '%');
+        const pg = document.querySelector('.progress');
+        pg && pg.setAttribute('aria-valuenow', String(progress));
+    
+        // upcoming: next 5 by due date (only with due_date and not completed)
+        const upcoming = tasks
+          .filter(t=> t.due_date && !t.completed)
+          .sort((a,b)=> new Date(a.due_date) - new Date(b.due_date))
+          .slice(0,5);
+    
+        if(upcomingList){
+          upcomingList.innerHTML = upcoming.length ? upcoming.map(t=>`
+            <div class="item">
+              <div>
+                <div class="title">${escapeHtml(t.title)}</div>
+                <div class="muted" style="margin-top:4px">${escapeHtml(t.category||'')}</div>
+              </div>
+              <span class="badge" style="background:${badgeBg(t.priority)}">${t.priority||'medium'}</span>
+            </div>
+          `).join('') : `<div class="muted">No upcoming tasks</div>`;
+        }
+    
+        // recent completed: latest 5 by updated/created date (fallback to id)
+        const recent = tasks
+          .filter(t=>t.completed)
+          .sort((a,b)=> new Date(b.updated_at||b.created_at||0) - new Date(a.updated_at||a.created_at||0))
+          .slice(0,5);
+    
+        if(recentCompleted){
+          recentCompleted.innerHTML = recent.length ? recent.map(t=>`
+            <div class="item">
+              <div>
+                <div class="title" style="text-decoration:line-through;color:rgba(230,238,248,0.7)">${escapeHtml(t.title)}</div>
+                <div class="muted" style="margin-top:4px">${escapeHtml(t.category||'')}</div>
+              </div>
+              <div class="small">${t.due_date ? new Date(t.due_date).toLocaleDateString() : ''}</div>
+            </div>
+          `).join('') : `<div class="muted">No recently completed tasks</div>`;
+        }
+      }
+    
+      function badgeBg(priority){
+        if(priority==='high') return '#fee2e2';
+        if(priority==='medium') return '#fffbeb';
+        return '#dcfce7';
+      }
+    
+      function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+    })();
+    </script>
+    
+    <!-- keep these two lines at the end of body -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <form style="display:none">{% csrf_token %}</form>
+    
+</body>
+</html>

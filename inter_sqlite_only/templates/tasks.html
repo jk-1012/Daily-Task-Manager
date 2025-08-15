@@ -1,0 +1,431 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Task Manager — Tasks</title>
+<style>
+  :root{
+    --bg:linear-gradient(135deg,#081226 0%,#06202a 55%,#073b3a 100%);
+    --card: rgba(255,255,255,0.03);
+    --accent:#7c3aed;
+    --ok:#34d399;
+    --warn:#f59e0b;
+    --danger:#ef4444;
+    --muted:rgba(230,238,248,0.75);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:Inter,Arial,sans-serif;background:var(--bg);color:#e6eef8;padding:18px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#34d399,#60a5fa)}
+  nav a{color:#e6eef8;text-decoration:none;margin-right:8px;padding:8px;border-radius:8px}
+  nav a:hover{background:rgba(255,255,255,0.03)}
+  .container{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:880px){.container{grid-template-columns:360px 1fr}}
+  .card{background:var(--card);padding:14px;border-radius:12px}
+  .muted{color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .controls input[type="search"]{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.05);background:transparent;color:inherit}
+  .select,button{padding:8px 10px;border-radius:10px;border:0;background:linear-gradient(90deg,#6d28d9,#2563eb);color:#fff;cursor:pointer}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+  .task-list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .task-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;background:rgba(0,0,0,0.08);justify-content:space-between}
+  .task-left{display:flex;align-items:center;gap:12px;flex:1}
+  .checkbox{width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .checkbox.checked{background:linear-gradient(90deg,#34d399,#60a5fa);border-color:transparent}
+  .title{font-weight:700}
+  .meta{font-size:13px;color:var(--muted)}
+  .bad{padding:6px 8px;border-radius:999px;font-size:12px}
+  .bad.high{background:rgba(254,226,226,0.9);color:#7f1d1d}
+  .bad.med{background:rgba(255,250,205,0.95);color:#713f12}
+  .bad.low{background:rgba(220,252,231,0.95);color:#064e3b}
+
+  .actions{display:flex;gap:8px}
+  .action-icon{padding:8px;border-radius:8px;border:0;background:transparent;color:inherit;cursor:pointer}
+  .action-icon:hover{background:rgba(255,255,255,0.02)}
+
+  /* modal */
+  .modal-back{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{width:100%;max-width:620px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:18px;border-radius:12px}
+  .form-row{display:flex;gap:8px;align-items:center}
+  .form-row .col{flex:1}
+  .field{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+  footer{max-width:1100px;margin:18px auto 0;color:rgba(230,238,248,0.6);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="logo"></div><div style="font-weight:700">Daily Task Manager</div></div>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/tasks-page/">Tasks</a>
+      <a href="/profile/">Profile</a>
+      <button onclick="logout()" class="select" style="background:#0ea5a4">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- left column: new task + filters -->
+    <aside class="card">
+      <h3>Create / Quick Add</h3>
+      <div style="margin-top:10px">
+        <input id="titleIn" class="field" placeholder="Task title">
+        <textarea id="descIn" class="field" placeholder="Description" style="margin-top:8px;min-height:84px"></textarea>
+
+        <div class="form-row" style="margin-top:8px">
+          <input id="dueIn" type="datetime-local" class="field col">
+          <select id="prioIn" class="field" style="max-width:140px">
+            <option value="medium">Medium</option><option value="high">High</option><option value="low">Low</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <label style="display:flex;align-items:center;gap:8px"><input id="reminderIn" type="checkbox"> Remind</label>
+          <input id="categoryIn" class="field" placeholder="Category" style="flex:1;max-width:140px">
+        </div>
+
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="select" id="btnAdd">Add Task</button>
+          <button class="btn-ghost" id="btnClear">Clear</button>
+        </div>
+      </div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+      <h4>Filters</h4>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <select id="filterStatus" class="field">
+          <option value="all">All</option><option value="pending">Pending</option><option value="completed">Completed</option>
+        </select>
+        <select id="filterPrio" class="field">
+          <option value="all">Any priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+        </select>
+        <input id="filterCategory" class="field" placeholder="Category (all)">
+        <div style="display:flex;gap:8px">
+          <button class="select" id="btnApply">Apply</button>
+          <button class="btn-ghost" id="btnReset">Reset</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- right column: task list -->
+    <section>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;gap:12px;align-items:center;width:100%">
+            <input id="search" type="search" placeholder="Search tasks..." style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+            <select id="sort" class="select">
+              <option value="due">Due date</option>
+              <option value="priority">Priority</option>
+              <option value="created">Created</option>
+            </select>
+            <button class="select" id="btnExport">Export</button>
+            <button class="btn-ghost" id="btnImport">Import</button>
+            <button class="btn-ghost" id="btnBulkClear">Clear Completed</button>
+          </div>
+        </div>
+
+        <div id="list" class="task-list" aria-live="polite" style="margin-top:12px">
+          <!-- tasks here -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalRoot" style="display:none"></div>
+
+  <footer>Tip: Click the checkbox to mark task complete. Use import/export to backup data.</footer>
+
+  <script>
+    (function(){
+      // DOM
+      const list = document.getElementById('list');
+      const addBtn = document.getElementById('btnAdd');
+      const titleIn = document.getElementById('titleIn');
+      const descIn = document.getElementById('descIn');
+      const dueIn = document.getElementById('dueIn');
+      const prioIn = document.getElementById('prioIn');
+      const catIn = document.getElementById('categoryIn');
+      const remIn = document.getElementById('reminderIn');
+      const clearBtn = document.getElementById('btnClear');
+    
+      const search = document.getElementById('search');
+      const sortSel = document.getElementById('sort');
+      const filterStatus = document.getElementById('filterStatus');
+      const filterPrio = document.getElementById('filterPrio');
+      const filterCategory = document.getElementById('filterCategory');
+    
+      const btnApply = document.getElementById('btnApply');
+      const btnReset = document.getElementById('btnReset');
+    
+      const btnExport = document.getElementById('btnExport');
+      const btnImport = document.getElementById('btnImport');
+      const btnBulkClear = document.getElementById('btnBulkClear');
+    
+      let tasks = [];
+      loadTasks();
+    
+      addBtn && addBtn.addEventListener('click', createTask);
+      clearBtn && clearBtn.addEventListener('click', clearInputs);
+      btnApply && btnApply.addEventListener('click', render);
+      btnReset && btnReset.addEventListener('click', resetFilters);
+      btnExport && btnExport.addEventListener('click', exportTasks);
+      btnImport && btnImport.addEventListener('click', importTasks);
+      btnBulkClear && btnBulkClear.addEventListener('click', bulkClearCompleted);
+    
+      search && search.addEventListener('input', render);
+      sortSel && sortSel.addEventListener('change', render);
+    
+      function loadTasks(){
+        fetch('/api/tasks/')
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(arr => { tasks = arr || []; render(); })
+          .catch(()=> alert('Failed to load tasks'));
+      }
+    
+      function createTask(){
+        const t = (titleIn && titleIn.value || '').trim();
+        if(!t) return alert('Please add a title');
+        const payload = {
+          title: t,
+          description: (descIn && descIn.value || '').trim(),
+          due_date: (dueIn && dueIn.value) || null,
+          priority: (prioIn && prioIn.value) || 'medium',
+          category: (catIn && catIn.value || 'General').trim(),
+          reminder: !!(remIn && remIn.checked),
+          completed: false
+        };
+        fetch('/api/tasks/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+          body: JSON.stringify(payload)
+        })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(newTask => { tasks.unshift(newTask); clearInputs(); render(); showToast('Task added'); })
+        .catch(()=> alert('Failed to add task'));
+      }
+    
+      function updateTask(id, patch){
+        return fetch(`/api/tasks/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+          body: JSON.stringify(patch)
+        }).then(r => r.ok ? r.json() : Promise.reject());
+      }
+    
+      function deleteTask(id){
+        return fetch(`/api/tasks/${id}/`, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': getCSRFToken() }
+        }).then(r => r.ok ? true : Promise.reject());
+      }
+    
+      function clearInputs(){
+        if(titleIn) titleIn.value='';
+        if(descIn) descIn.value='';
+        if(dueIn) dueIn.value='';
+        if(prioIn) prioIn.value='medium';
+        if(catIn) catIn.value='';
+        if(remIn) remIn.checked=false;
+      }
+    
+      function resetFilters(){
+        if(search) search.value='';
+        if(sortSel) sortSel.value='due';
+        if(filterStatus) filterStatus.value='all';
+        if(filterPrio) filterPrio.value='all';
+        if(filterCategory) filterCategory.value='';
+        render();
+      }
+    
+      function filtered(){
+        let arr = [...tasks];
+    
+        // search
+        const q = (search && search.value || '').trim().toLowerCase();
+        if(q) arr = arr.filter(t => (t.title||'').toLowerCase().includes(q) || (t.description||'').toLowerCase().includes(q));
+    
+        // status
+        const st = filterStatus ? filterStatus.value : 'all';
+        if(st==='pending') arr = arr.filter(t => !t.completed);
+        if(st==='completed') arr = arr.filter(t => t.completed);
+    
+        // priority
+        const pr = filterPrio ? filterPrio.value : 'all';
+        if(pr!=='all') arr = arr.filter(t => (t.priority||'medium') === pr);
+    
+        // category
+        const cat = (filterCategory && filterCategory.value || '').trim().toLowerCase();
+        if(cat) arr = arr.filter(t => (t.category||'').toLowerCase() === cat);
+    
+        // sort
+        const s = sortSel ? sortSel.value : 'due';
+        if(s==='due') arr.sort((a,b)=> new Date(a.due_date||9999999999999) - new Date(b.due_date||9999999999999));
+        if(s==='priority'){
+          const rank = { high:0, medium:1, low:2 };
+          arr.sort((a,b)=> (rank[a.priority||'medium'] - rank[b.priority||'medium']));
+        }
+        if(s==='created') arr.sort((a,b)=> new Date(b.created_at||0) - new Date(a.created_at||0));
+    
+        return arr;
+      }
+    
+      function render(){
+        const arr = filtered();
+        if(!list) return;
+        list.innerHTML = arr.map(t => `
+          <div class="task-item">
+            <div class="task-left">
+              <div class="checkbox ${t.completed ? 'checked':''}" data-id="${t.id}" role="checkbox" aria-checked="${t.completed}">
+                ${t.completed ? '✓' : ''}
+              </div>
+              <div>
+                <div class="title" style="${t.completed?'text-decoration:line-through;opacity:.8':''}">${escapeHtml(t.title)}</div>
+                <div class="meta">${t.category||'General'} • ${t.priority||'medium'} ${t.due_date?('• '+new Date(t.due_date).toLocaleString()):''}</div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="action-icon edit" data-id="${t.id}">Edit</button>
+              <button class="action-icon del" data-id="${t.id}">Delete</button>
+            </div>
+          </div>
+        `).join('');
+    
+        // bind actions
+        list.querySelectorAll('.checkbox').forEach(el=>{
+          el.addEventListener('click', ()=>{
+            const id = el.getAttribute('data-id');
+            const task = tasks.find(x=>String(x.id)===String(id));
+            if(!task) return;
+            updateTask(id, { completed: !task.completed })
+              .then(u => { const i = tasks.findIndex(x=>String(x.id)===String(id)); tasks[i]=u; render(); })
+              .catch(()=> alert('Failed to update'));
+          });
+        });
+    
+        list.querySelectorAll('.del').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            const id = btn.getAttribute('data-id');
+            if(!confirm('Delete this task?')) return;
+            deleteTask(id)
+              .then(()=> { tasks = tasks.filter(x=>String(x.id)!==String(id)); render(); })
+              .catch(()=> alert('Failed to delete'));
+          });
+        });
+    
+        list.querySelectorAll('.edit').forEach(btn=>{
+          btn.addEventListener('click', ()=> openEdit(btn.getAttribute('data-id')));
+        });
+      }
+    
+      // simple modal editor
+      function openEdit(id){
+        const t = tasks.find(x=>String(x.id)===String(id));
+        if(!t) return;
+    
+        const root = document.getElementById('modalRoot');
+        if(!root) return;
+        root.style.display='block';
+        root.innerHTML = `
+          <div class="modal-back" onclick="this.parentElement.style.display='none'">
+            <div class="modal" onclick="event.stopPropagation()">
+              <h3>Edit Task</h3>
+              <div class="form-row" style="margin-top:8px">
+                <input id="mTitle" class="field col" value="${escapeHtml(t.title)}">
+                <select id="mPrio" class="field" style="max-width:140px">
+                  <option value="high" ${t.priority==='high'?'selected':''}>High</option>
+                  <option value="medium" ${t.priority!=='high'&&t.priority!=='low'?'selected':''}>Medium</option>
+                  <option value="low" ${t.priority==='low'?'selected':''}>Low</option>
+                </select>
+              </div>
+              <textarea id="mDesc" class="field" style="margin-top:8px;min-height:84px">${escapeHtml(t.description||'')}</textarea>
+              <div class="form-row" style="margin-top:8px">
+                <input id="mDue" type="datetime-local" class="field col" value="${t.due_date? toLocalDT(t.due_date):''}">
+                <label style="display:flex;align-items:center;gap:8px"><input id="mRem" type="checkbox" ${t.reminder?'checked':''}> Remind</label>
+                <input id="mCat" class="field col" value="${escapeHtml(t.category||'')}">
+              </div>
+              <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+                <button id="mSave" class="select">Save</button>
+                <button id="mClose" class="btn-ghost">Close</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.getElementById('mClose').onclick = closeModal;
+        document.getElementById('mSave').onclick = ()=>{
+          updateTask(id, {
+            title: document.getElementById('mTitle').value.trim(),
+            description: document.getElementById('mDesc').value.trim(),
+            due_date: document.getElementById('mDue').value || null,
+            priority: document.getElementById('mPrio').value,
+            reminder: document.getElementById('mRem').checked,
+            category: document.getElementById('mCat').value.trim() || 'General'
+          })
+          .then(u => { const i = tasks.findIndex(x=>String(x.id)===String(id)); tasks[i]=u; closeModal(); render(); showToast('Saved'); })
+          .catch(()=> alert('Failed to save'));
+        };
+      }
+      function closeModal(){ const root = document.getElementById('modalRoot'); if(root){ root.style.display='none'; root.innerHTML=''; } }
+    
+      function exportTasks(){
+        const blob = new Blob([JSON.stringify(tasks)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download='tasks-export.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }
+      function importTasks(){
+        const inp = document.createElement('input'); inp.type='file'; inp.accept='application/json';
+        inp.onchange = e => {
+          const f = e.target.files[0]; if(!f) return;
+          const r = new FileReader(); r.onload = ()=>{
+            try{
+              const arr = JSON.parse(r.result);
+              if(Array.isArray(arr)){
+                Promise.all(arr.map(t => fetch('/api/tasks/', {
+                  method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':getCSRFToken()},
+                  body: JSON.stringify({
+                    title: t.title, description: t.description||'', due_date: t.due_date||null,
+                    priority: t.priority||'medium', category: t.category||'General',
+                    reminder: !!t.reminder, completed: !!t.completed
+                  })
+                }))).then(()=> loadTasks());
+              } else alert('Invalid file');
+            }catch{ alert('Error parsing file'); }
+          }; r.readAsText(f);
+        }; inp.click();
+      }
+      function bulkClearCompleted(){
+        const toDel = tasks.filter(t=>t.completed).map(t=>t.id);
+        Promise.all(toDel.map(id => deleteTask(id))).then(()=> loadTasks());
+      }
+    
+      // toast
+      let tId;
+      function showToast(msg){
+        clearTimeout(tId);
+        let el = document.getElementById('dtm_toast');
+        if(!el){
+          el = document.createElement('div'); el.id='dtm_toast'; document.body.appendChild(el);
+          el.style.position='fixed'; el.style.right='18px'; el.style.bottom='18px';
+          el.style.background='linear-gradient(90deg,#111827,#0f172a)'; el.style.color='white';
+          el.style.padding='12px 16px'; el.style.borderRadius='10px'; el.style.boxShadow='0 8px 20px rgba(2,6,23,0.6)';
+        }
+        el.textContent = msg;
+        el.style.opacity='1';
+        tId = setTimeout(()=>{ if(el) el.style.opacity='0' },3000);
+      }
+    
+      function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+      function toLocalDT(s){
+        const d = new Date(s);
+        const pad = n=> String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+    })();
+    </script>
+    
+    <!-- keep these two lines at the end of body -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <form style="display:none">{% csrf_token %}</form>
+    
+</body>
+</html>
